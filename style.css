@@ -1,0 +1,17 @@
+body {
+	max-width: 720px;
+	color: #eee;
+  	background: #1e1e1e;
+}
+
+body a {
+	color: #809fff;
+}
+
+.post {
+	margin-left: 10px;
+}
+
+.article {
+	margin-left: 40px;
+}

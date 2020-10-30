@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>UNIX Connections: Cron and Sewing Needles</title>
+	<link rel="stylesheet" href="style.css" type="text/css">
+</head>
+<body>
+
+<div class="post">
+<h2>Cron and Sewing Needles</h2>
+<i>June 13, 2011</i>
+<hr>
+
+<div class="article">
+
+<p>Sometimes, even after years of experience, you still screw up.</p>
+
+<p>Consider this cron entry I put in last night:</p>
+<pre>
+    # Backup MongoDB every 6 hours, zip it up, and rsync it.
+    * */6 * * * ~/bin/backup_mongo.sh
+</pre>
+<p>I wanted this to run the backup script for MongoDB every six hours. Instead, I got it running every
+minute for an hour every six hours. You'd think I'd know better considering I put the next cron in correctly:</p>
+<pre>
+    # Remove MongoDB backups that are more than 24-hours old.
+    00 02 * * * find /db/backup -mtime +1 -exec rm -f {} \;
+</pre>
+<p>What I meant to do is this:</p>
+<pre>
+    # Backup MongoDB every 6 hours, zip it up, and rsync it.
+    00 */6 * * * ~/bin/backup_mongo.sh
+</pre>
+<p>Luckily we host our infrastructure at Engine Yard and their staff noticed the CPU spike on this server at midnight and fixed the cron.</p>
+
+<p>Which brings up another point: name your scripts appropriately. In this case a quick scan of cron revealed this script was running a backup and doing that every six hours makes sense. If the script was just named mongo, it's conceivable it could have been a metric collection script that runs every minute for an hour every six hours.</p>
+
+<p>So what do sewing needles have to do with cron? I'm working from home this week and had just finished that MongoDB backup script and was putting it in cron when my daughter came running (Ok, make that hopping) into my office with a large sewing needle in-bedded about 1/4" deep in the arch of her foot. I quickly saved the cron entry to take care of that problem and didn't go back to check my work.</p>
+
+<p>Moral of the story: whenever you set up a new cron job it's a good idea to watch it run and see if it's doing what you think it is. Especially if you think you know what you're doing.</p>
+
+</div>
+</div>
+
+<hr>
+<address><a href="mailto:msisk@acm.org">msisk@acm.org</a></address>
+</body>
+</html>
