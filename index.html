@@ -22,6 +22,42 @@
 <hr>
 
 <!--  START POST  -->
+<div class="post" id="rural-internet">
+<h2>Rural Internet</h2>
+<i>October 29, 2020</i>
+
+<div class="article">
+
+<p>One of the joys of living out in the rural hither lands is a lack of broadband internet.</p>
+
+<p>We have a satellite connection with <a href="https://www.viasat.com">Viasat</a>, and while it’s fine for casual surfing it’s not usable for work stuff — with it connecting to a satellite in geosynchronous orbit (about 10% the distance to the moon; light takes a noticeable bit of time to go that far and back) the latency is way too high for video conferencing or VPN.</p>
+
+<p>There's no rural broadband provider out here. Some areas have something called <a href="https://en.wikipedia.org/wiki/Fixed_wireless">fixed wireless</a>, which is essentially long-range WiFi, but it's too hilly and there's too many trees here.</p>
+
+<p>So I’m stuck with cellular internet.</p>
+
+<p>I was using the <a href="https://togorv.com/roadlink-c2-rv-wifi-router/">Togo RoadLink C2</a> system I have in our RV, but my "unlimited" yearly prepay plan ran out and AT&T decided a price increase of 3000% was appropriate during a pandemic. So that’s out.</p>
+
+<p>But I did find a service though <a href="https://nomadinternet.com">Nomad Internet</a> that provides a suitable unlimited data plan for a bit over $100 a month on cellular networks. Which is nice since I use about 10GB a day for normal work stuff — it adds up over the month.</p>
+
+<p>One problem is that I’m about 5 miles away from my local cell tower and we have a lot of trees and hills in the way so my signal strength is low and my connection isn’t reliable.</p>
+
+<p>But the other day I was out on the deck with a telescope and noticed I had a line of sight to this tower if I looked though a gap in our trees and at the right location I can see the very top of the cell tower peeking over the distant ridge. That’ll work with the proper equipment.</p>
+
+<p>So Amazon delivered some goodies. I got several <a href="https://www.wilsonpro.com/products/50-ohm-wide-band-directional-antenna">Wilson log periodic dipole array (LPDA) antenna</a>. These are highly directional wide bandwidth antenna tuned to 4G LTE frequencies. The trick with these is the installation — these work best in something called 2×2 MIMO to establish two data streams with the tower. They’re on the same frequency so for the spatial multiplexing to be effective the antennas must be isolated and configured to provide a low correlation coefficient. The easiest way to do this in a 2×2 system is to use orthogonal polarization; i.e. each antenna is rotated 90-degree from the other along a parallel axis pointing toward the distant tower. Then the antennas need to be between .5 and 2 λ (wavelength) apart so they don’t interfere with each other.</p>
+
+<p>After getting it hooked up and the antenna mounted it was time to do a little testing.</p>
+
+<p>Measuring the signal, the RSRP (signal strength) went from -106 dBm to -86 dBm (marginal to excellent) and the RSRQ (signal quality) went from -16 dBm to -10 dBm (poor to excellent). My actual internet speeds didn’t change much (being around 4 Mbps up and down; good enough for out here) but the ping times are down and the connection should be more stable.</p>
+
+<p>I couldn’t figure out a good way to get the thick cables inside the house without doing a lot of drilling, so I just ran the antenna leads under the deck and into a rubbermaid container out on the deck right outside from my office. In the container I put the LTE modem, a wifi router, a battery packup, and a Raspberry Pi for monitoring. There was already an electrical outlet on the deck for power and even though it’s all outside, my desk is close enough I get a full-strength wifi signal and I didn’t have to make any permanent alterations to the house.</p>
+
+&#x269B;
+</div>
+</div>
+<!--  END POST  -->
+
+<!--  START POST  -->
 <div class="post" id="docker-pi">
 <h2>Installing Docker on a Raspberry Pi</h2>
 <i>November 9, 2019</i>
