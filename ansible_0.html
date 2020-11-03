@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>UNIX Connections: Getting Started with Ansible, Part 0</title>
+	<link rel="stylesheet" href="style.css" type="text/css">
+</head>
+<body>
+
+<div class="post">
+<h2>Getting Started with Ansible, Part 0</h2>
+<i>November 2, 2020</i>
+
+<div class="article">
+
+<p>Ansible is a popular open-source tool to automate common system administration tasks. </p>
+
+<p>There's a few other tools in the automation space; examples include Chef, Puppet, and SaltStack. These are called <em>configuration management</em> tools and they can be used to automate everything from mainframes to tiny IoT devices. </p>
+
+<p>Ansible is arguably the most popular of these tools right now. There's several reason for this. One is that it's written in Python, a computer language exploding in popularity. Another is that the code you write to automate things (called "playbooks") are written in a simple declarative file formatted in YAML. Even if you don't know programming you can still get stuff done in Ansible. And finally, unlike most other configuration management tools, Ansible doesn't require an always running agent; they just need a standard OpenSSH port open and accepting connections. </p>
+
+<p>If you've ever worked in a large enterprise shop or had to deal with compliance issues, one less agent to manage on every node is a big deal.</p>
+
+<p>For this simple tutorial I'm going to setup and run Ansible on my MacBook and the remote machines are six small Raspberry Pi single-board computers running Linux on my desk. </p>
+
+<p>If you don't have a Raspberry Pi or two to play with you can use another computer on your network, a cloud server you spin up just to play with, or even a Linux image running in Docker.</p>
+
+<p>Ok, let's get started on the MacBook. </p>
+
+<p>First, let's make a directory to hold our Ansible project:
+<pre>
+[~/repo] $ mkdir pi_ansible
+[~/repo] $ cd pi_ansible
+</pre></p>
+
+<p>We're going to use a Python virtual environment to hold all the dependencies we need for Ansible. This creates the virtual environment in our Ansible project directory and sticks all the Python bits and packages inside the <code>env</code> directory:
+<pre>
+[~/repo/pi_ansible] $ python3 -m venv env
+</pre></p>
+
+<p>Ok, now we need to activate the virtual environment. To do that just source the activate script that was created when the virtual environment was installed during the previous step:
+<pre>
+[~/repo/pi_ansible] $ source env/bin/activate
+</pre></p>
+
+<p>Depending on your shell and setup, you'll probably see your prompt to change to indicate you've activated the virtual environment. You can check it's setup correctly by doing a <code>which pip3</code> to make sure it's using the one inside the virtual environment:
+<pre>
+(env) [~/repo/pi_ansible] $ which pip3
+/Users/mike/repo/pi_ansible/env/bin/pip3
+</pre></p>
+
+<p>Now we're ready to install Ansible.</p>
+
+<p>With Ansible version 2.10 there's a slight change; previously you'd just install one Ansible package and all the things would get installed.</p>
+
+<p>Now it's split into two packages: <code>ansible-base</code>, which is the base that just includes the bits needed for Ansible to run, and <code>ansible</code>, which includes playbooks and modules for many common operations.</p>
+
+<p>The reason for this change is many large sites have unique needs and don't need all the playbooks and stuff. If you're installing on thousands of servers all that extra stuff adds up. </p>
+
+<p>For this example we'll install both packages:
+<pre>
+(env) [~/repo/pi_ansible] $ pip3 install ansible-base
+Collecting ansible-base
+  Using cached ansible-base-2.10.2.tar.gz (6.0 MB)
+Collecting jinja2
+  Using cached Jinja2-2.11.2-py2.py3-none-any.whl (125 kB)
+Collecting PyYAML
+...
+(env) [~/repo/pi_ansible] $ pip3 install ansible
+Collecting ansible
+  Using cached ansible-2.10.1.tar.gz (25.9 MB)
+Requirement already satisfied: ansible-base&lt;2.11,&gt;=2.10.2 in ./env/lib/python3.9/site-packages (from ansible) (2.10.2)
+...
+</pre></p>
+
+<p>Let's check the version and make sure Ansible is installed:
+<pre>
+(env) [~/repo/pi_ansible] $ ansible --version
+ansible 2.10.2
+  config file = None
+  configured module search path = ['/Users/mike/.ansible/plugins/modules', '/usr/share/ansible/plugins/modules']
+  ansible python module location = /Users/mike/repo/pi_ansible/env/lib/python3.9/site-packages/ansible
+  executable location = /Users/mike/repo/pi_ansible/env/bin/ansible
+  python version = 3.9.0 (v3.9.0:9cf6752276, Oct  5 2020, 11:29:23) [Clang 6.0 (clang-600.0.57)]
+</pre></p>
+
+<p>This is how the output looks on my Mac. If you're on a different platform it might be different. Just make sure Ansible runs and returns a version number. </p>
+
+<p>There's a few more things to do before we take our first step.</p>
+
+<p>Ansible works with an inventory. In large environments you'll likely have this dynamic and pull information from some database that knows about your setup. </p>
+
+<p>But for smaller environments you'll just keep an inventory in a file in the Ansible directory. That's what we're going to do.</p>
+
+<p>My Raspberry Pi cluster is connected to the network via WiFi and I don't have them in DNS, so we're just going to put them in a file by IP address. Let's call this file <code>hosts.txt</code> and this is what it looks like:
+<pre>
+[all]
+192.168.1.138
+192.168.1.148
+192.168.1.117
+192.168.1.101
+192.168.1.126
+192.168.1.114
+</pre></p>
+
+<p>The first line is a label we'll just put all the systems under <code>[all]</code>. You could divide this up with labels such as <code>[webservers]</code> or <code>[databases]</code> but for now let's keep it simple. </p>
+
+<p>Next we need to tell Ansible where to look for the inventory. By default Ansible will look for the inventory in several default locations like /etc/ansible.cfg, but no one really uses it that way. It's best to just put the inventory in the same project you use for the playbooks and other configuration files. </p>
+
+<p>The primary configuration file is called <code>ansible.cfg</code> in the project directory. Let's create it:
+<pre>
+[defaults]
+inventory = hosts.txt
+</pre></p>
+
+<p>Let's run ansible in AdHoc mode with the ping module and see how it works.
+<pre>
+(env) [~/repo/pi_ansible] $ ansible all -m ping
+192.168.1.148 | UNREACHABLE! =&gt; {
+    "changed": false,
+    "msg": "Failed to connect to the host via ssh: mike@192.168.1.148: Permission denied (publickey,password).",
+    "unreachable": true
+}
+192.168.1.138 | UNREACHABLE! =&gt; {
+    "changed": false,
+    "msg": "Failed to connect to the host via ssh: mike@192.168.1.138: Permission denied (publickey,password).",
+    "unreachable": true
+}
+192.168.1.101 | UNREACHABLE! =&gt; {
+    "changed": false,
+    "msg": "Failed to connect to the host via ssh: mike@192.168.1.101: Permission denied (publickey,password).",
+    "unreachable": true
+}
+192.168.1.117 | UNREACHABLE! =&gt; {
+    "changed": false,
+    "msg": "Failed to connect to the host via ssh: mike@192.168.1.117: Permission denied (publickey,password).",
+    "unreachable": true
+}
+192.168.1.126 | UNREACHABLE! =&gt; {
+    "changed": false,
+    "msg": "Failed to connect to the host via ssh: mike@192.168.1.126: Permission denied (publickey,password).",
+    "unreachable": true
+}
+192.168.1.114 | UNREACHABLE! =&gt; {
+    "changed": false,
+    "msg": "Failed to connect to the host via ssh: mike@192.168.1.114: Permission denied (publickey,password).",
+    "unreachable": true
+}
+</pre></p>
+
+<p>That's not right. If you look at the output you can see ansible trying to login to the servers with my current MacBook user, but I don't have that account on the Raspberry Pi systems. </p>
+
+<p>We need to add a remote_user configuration to <code>ansible.cfg</code> and set it to the pi user:
+<pre>
+[defaults]
+inventory = hosts.txt
+remote_user = pi
+</pre></p>
+
+<p>Let's try it again:
+<pre>
+(env) [~/repo/pi_ansible] $ ansible all -m ping
+192.168.1.138 | UNREACHABLE! =&gt; {
+    "changed": false,
+    "msg": "Failed to connect to the host via ssh: pi@192.168.1.138: Permission denied (publickey,password).",
+    "unreachable": true
+}
+192.168.1.148 | UNREACHABLE! =&gt; {
+    "changed": false,
+    "msg": "Failed to connect to the host via ssh: pi@192.168.1.148: Permission denied (publickey,password).",
+    "unreachable": true
+}
+192.168.1.117 | UNREACHABLE! =&gt; {
+    "changed": false,
+    "msg": "Failed to connect to the host via ssh: pi@192.168.1.117: Permission denied (publickey,password).",
+    "unreachable": true
+}
+192.168.1.126 | UNREACHABLE! =&gt; {
+    "changed": false,
+    "msg": "Failed to connect to the host via ssh: pi@192.168.1.126: Permission denied (publickey,password).",
+    "unreachable": true
+}
+192.168.1.101 | UNREACHABLE! =&gt; {
+    "changed": false,
+    "msg": "Failed to connect to the host via ssh: pi@192.168.1.101: Permission denied (publickey,password).",
+    "unreachable": true
+}
+192.168.1.114 | UNREACHABLE! =&gt; {
+    "changed": false,
+    "msg": "Failed to connect to the host via ssh: pi@192.168.1.114: Permission denied (publickey,password).",
+    "unreachable": true
+}
+</pre></p>
+
+<p>Ansible is trying to login with the remote user now, but it's still not working.</p>
+
+<p>The problem is that the pi user is setup with a password. That's not going to work with automation. </p>
+
+<p>What we need to do is copy our ssh public_key to each of these servers so ansible can login without having to use the password. </p>
+
+<p>Note: this assumes you have a ssh key generated on your system. If you need to do that, go here to learn more: <a href="https://git-scm.com/book/en/v2/Git-on-the-Server-Generating-Your-SSH-Public-Key">https://git-scm.com/book/en/v2/Git-on-the-Server-Generating-Your-SSH-Public-Key</a></p>
+
+<p>I'm going to use a little shell magic to loop though the inventory and copy the ssh keys to the remote systems.
+<pre>
+(env) [~/repo/pi<em>ansible] $ for x in $(awk NR-1 hosts.txt); do ssh-copy-id pi@$x; done
+/usr/bin/ssh-copy-id: INFO: Source of key(s) to be installed: "/Users/mike/.ssh/id</em>ed25519.pub"
+/usr/bin/ssh-copy-id: INFO: attempting to log in with the new key(s), to filter out any that are already installed
+/usr/bin/ssh-copy-id: INFO: 1 key(s) remain to be installed -- if you are prompted now it is to install the new keys
+pi@192.168.1.138's password: </p>
+
+<p>Number of key(s) added:        1</p>
+
+<p>Now try logging into the machine, with:   "ssh 'pi@192.168.1.138'"
+and check to make sure that only the key(s) you wanted were added.</p>
+
+<p>/usr/bin/ssh-copy-id: INFO: Source of key(s) to be installed: "/Users/mike/.ssh/id_ed25519.pub"
+/usr/bin/ssh-copy-id: INFO: attempting to log in with the new key(s), to filter out any that are already installed
+/usr/bin/ssh-copy-id: INFO: 1 key(s) remain to be installed -- if you are prompted now it is to install the new keys
+pi@192.168.1.148's password: </p>
+
+<p>Number of key(s) added:        1</p>
+
+<p>Now try logging into the machine, with:   "ssh 'pi@192.168.1.148'"
+and check to make sure that only the key(s) you wanted were added.</p>
+
+<p>/usr/bin/ssh-copy-id: INFO: Source of key(s) to be installed: "/Users/mike/.ssh/id_ed25519.pub"
+/usr/bin/ssh-copy-id: INFO: attempting to log in with the new key(s), to filter out any that are already installed
+/usr/bin/ssh-copy-id: INFO: 1 key(s) remain to be installed -- if you are prompted now it is to install the new keys
+pi@192.168.1.117's password: </p>
+
+<p>Number of key(s) added:        1</p>
+
+<p>Now try logging into the machine, with:   "ssh 'pi@192.168.1.117'"
+and check to make sure that only the key(s) you wanted were added.</p>
+
+<p>/usr/bin/ssh-copy-id: INFO: Source of key(s) to be installed: "/Users/mike/.ssh/id_ed25519.pub"
+/usr/bin/ssh-copy-id: INFO: attempting to log in with the new key(s), to filter out any that are already installed
+/usr/bin/ssh-copy-id: INFO: 1 key(s) remain to be installed -- if you are prompted now it is to install the new keys
+pi@192.168.1.101's password: </p>
+
+<p>Number of key(s) added:        1</p>
+
+<p>Now try logging into the machine, with:   "ssh 'pi@192.168.1.101'"
+and check to make sure that only the key(s) you wanted were added.</p>
+
+<p>/usr/bin/ssh-copy-id: INFO: Source of key(s) to be installed: "/Users/mike/.ssh/id_ed25519.pub"
+/usr/bin/ssh-copy-id: INFO: attempting to log in with the new key(s), to filter out any that are already installed
+/usr/bin/ssh-copy-id: INFO: 1 key(s) remain to be installed -- if you are prompted now it is to install the new keys
+pi@192.168.1.126's password: </p>
+
+<p>Number of key(s) added:        1</p>
+
+<p>Now try logging into the machine, with:   "ssh 'pi@192.168.1.126'"
+and check to make sure that only the key(s) you wanted were added.</p>
+
+<p>/usr/bin/ssh-copy-id: INFO: Source of key(s) to be installed: "/Users/mike/.ssh/id_ed25519.pub"
+/usr/bin/ssh-copy-id: INFO: attempting to log in with the new key(s), to filter out any that are already installed
+/usr/bin/ssh-copy-id: INFO: 1 key(s) remain to be installed -- if you are prompted now it is to install the new keys
+pi@192.168.1.114's password: </p>
+
+<p>Number of key(s) added:        1</p>
+
+<p>Now try logging into the machine, with:   "ssh 'pi@192.168.1.114'"
+and check to make sure that only the key(s) you wanted were added.
+</pre></p>
+
+<p>The shell line reads the IP addresses from hosts.txt (the awk thing is to skip the first line, which is a label), and runs the ssh-copy-id command which copies the ssh public key to a remote machine. You still need to enter your password on each machine, but this will be the last time.</p>
+
+<p>Ok, one more time:
+<pre>
+(env) [~/repo/pi_ansible] $ ansible all -m ping <br />
+[DEPRECATION WARNING]: Distribution debian 10.4 on host 192.168.1.101 should use /usr/bin/python3, but is
+using /usr/bin/python for backward compatibility with prior Ansible releases. A future Ansible release will
+default to using the discovered platform python for this host. See
+https://docs.ansible.com/ansible/2.10/reference_appendices/interpreter_discovery.html for more information.
+This feature will be removed in version 2.12. Deprecation warnings can be disabled by setting
+deprecation_warnings=False in ansible.cfg.
+192.168.1.101 | SUCCESS =&gt; {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+[DEPRECATION WARNING]: Distribution debian 10.4 on host 192.168.1.126 should use /usr/bin/python3, but is
+using /usr/bin/python for backward compatibility with prior Ansible releases. A future Ansible release will
+default to using the discovered platform python for this host. See
+https://docs.ansible.com/ansible/2.10/reference_appendices/interpreter_discovery.html for more information.
+This feature will be removed in version 2.12. Deprecation warnings can be disabled by setting
+deprecation_warnings=False in ansible.cfg.
+192.168.1.126 | SUCCESS =&gt; {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+[DEPRECATION WARNING]: Distribution debian 10.4 on host 192.168.1.117 should use /usr/bin/python3, but is
+using /usr/bin/python for backward compatibility with prior Ansible releases. A future Ansible release will
+default to using the discovered platform python for this host. See
+https://docs.ansible.com/ansible/2.10/reference_appendices/interpreter_discovery.html for more information.
+This feature will be removed in version 2.12. Deprecation warnings can be disabled by setting
+deprecation_warnings=False in ansible.cfg.
+192.168.1.117 | SUCCESS =&gt; {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+[DEPRECATION WARNING]: Distribution debian 10.6 on host 192.168.1.138 should use /usr/bin/python3, but is
+using /usr/bin/python for backward compatibility with prior Ansible releases. A future Ansible release will
+default to using the discovered platform python for this host. See
+https://docs.ansible.com/ansible/2.10/reference_appendices/interpreter_discovery.html for more information.
+This feature will be removed in version 2.12. Deprecation warnings can be disabled by setting
+deprecation_warnings=False in ansible.cfg.
+192.168.1.138 | SUCCESS =&gt; {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+[DEPRECATION WARNING]: Distribution debian 10.4 on host 192.168.1.148 should use /usr/bin/python3, but is
+using /usr/bin/python for backward compatibility with prior Ansible releases. A future Ansible release will
+default to using the discovered platform python for this host. See
+https://docs.ansible.com/ansible/2.10/reference_appendices/interpreter_discovery.html for more information.
+This feature will be removed in version 2.12. Deprecation warnings can be disabled by setting
+deprecation_warnings=False in ansible.cfg.
+192.168.1.148 | SUCCESS =&gt; {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+[DEPRECATION WARNING]: Distribution debian 10.4 on host 192.168.1.114 should use /usr/bin/python3, but is
+using /usr/bin/python for backward compatibility with prior Ansible releases. A future Ansible release will
+default to using the discovered platform python for this host. See
+https://docs.ansible.com/ansible/2.10/reference_appendices/interpreter_discovery.html for more information.
+This feature will be removed in version 2.12. Deprecation warnings can be disabled by setting
+deprecation_warnings=False in ansible.cfg.
+192.168.1.114 | SUCCESS =&gt; {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+</pre></p>
+
+<p>It's working! But what's with that huge <code>[DEPRECATION WARNING]</code>?</p>
+
+<p>This is saying Ansible found both Python2 and Python3 on the remote servers and it's using Python2. But that's going to change in a future release and anything that depends on Python2 is going to break. </p>
+
+<p>This doesn't apply to us. Let's enable the future option and use  Python3 by adding one more line to <code>ansible.cfg</code>:
+<pre>
+[defaults]
+inventory = hosts.txt
+remote_user = pi
+interpreter_python = auto
+</pre></p>
+
+<p>Let's run it one last time:
+<pre>
+192.168.1.138 | SUCCESS =&gt; {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+192.168.1.126 | SUCCESS =&gt; {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+192.168.1.148 | SUCCESS =&gt; {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+192.168.1.117 | SUCCESS =&gt; {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+192.168.1.101 | SUCCESS =&gt; {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+192.168.1.114 | SUCCESS =&gt; {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+</pre></p>
+
+<p>All right! Ansible is now working and reporting SUCCESS with the ping module. </p>
+
+<p>We got Ansible installed and configured at a basic level and you've seen a successful run along with a few failures. </p>
+
+<p>In a future post we'll talk about what modules are, what that fact thing being reported is all about, and how to do some actual automation. </p>
+
+
+</div>
+</div>
+
+</body>
+</html>
